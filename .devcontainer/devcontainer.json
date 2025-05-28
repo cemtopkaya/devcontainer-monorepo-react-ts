@@ -1,0 +1,24 @@
+{
+  "name": "react-app-component",
+  "dockerComposeFile": [
+    "./docker-compose.yml"
+  ],
+  "service": "react-dev",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-vscode.vscode-typescript-next",
+        "github.vscode-pull-request-github"
+      ],
+      "settings": {
+        "terminal.integrated.shell.linux": "/bin/bash"
+      }
+    }
+  },
+  "workspaceFolder": "/workspace",
+  "postCreateCommand": "./.devcontainer/postcreate.sh"
+}
