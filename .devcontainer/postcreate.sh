@@ -1,92 +1,57 @@
-# Create a pnpm workspace with two components
-cat > /workspace/pnpm-workspace.yaml << EOF
-packages:
-  - 'apps/*'
-  - 'packages/*'
-EOF
+# Install jq if not already installed
+if ! command -v jq &> /dev/null; then
+    echo "Installing jq..."
+    apt-get update && apt-get install -y jq
+fi
 
-cd /workspace
-pnpm init
-sed -i 's|"test": "echo \\"Error: no test specified\\" && exit 1"|"start:ui": "pnpm --filter comp1-app dev",\n    "build:comp1": "pnpm --filter comp1 build"|' /workspace/package.json
+# Function to add a script to package.json
+addScript() {
+    local package_path=$1
+    local script_name=$2
+    local script_command=$3
+    
+    # Add or update the specified script in the scripts object
+    jq --arg name "$script_name" --arg cmd "$script_command" \
+       '.scripts[$name] = $cmd' "$package_path" > "$package_path.tmp" && 
+       mv "$package_path.tmp" "$package_path"
+}
 
+# --------------------------------------------------------------
+
+# Define shared variables at the top
+workspaceDir="/workspace"
+pakagesDir="$workspaceDir/packages"
 
 # Create directories for components
 mkdir -p /workspace/packages
 # Create directories for the component test app
 mkdir -p /workspace/apps
 
-# -------------------------------------------------------------
-#               comp1-app - a simple web app
-# Create test web app for the first component
-# -------------------------------------------------------------
-pnpm create vite apps/comp1-app --template react-ts
 
-cd /workspace/apps/comp1-app
-pnpm install
+# --------------------------------------------------------------
+# Function to initialize a component
+# --------------------------------------------------------------
+initComponent() {
+    local componentName=$1
+    local componentDir="${pakagesDir}/${componentName}"
 
-cat > /workspace/apps/comp1-app/vite.config.ts <<'EOF'
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+    # Create the component directory
+    mkdir -p "$componentDir"
 
-export default defineConfig({
-    plugins: [react()],
-    server: {
-        port: 3001,
-        host: '0.0.0.0',
-    }
-})
-EOF
+    #------------------------------------------------------------
+    #                   comp1 - a simple component
+    # Create a component in the packages directory
+    #------------------------------------------------------------
+    cd "$componentDir"
+    pnpm init -y
 
-# Create a simple React component that uses the Logger from comp1
-cat > /workspace/apps/comp1-app/src/App.tsx <<'EOF'
-import Compomompo from 'comp1'
-
-function App() {
-  return (
-    <div className="App">
-      <h1>comp1 Web App</h1>
-      <Compomompo message="Hello from comp1!" />
-    </div>
-  )
-}
-
-export default App
-EOF
-
-#------------------------------------------------------------
-#                   comp1 - a simple component
-# Create a component in the packages directory
-#------------------------------------------------------------
-mkdir -p /workspace/packages/comp1/src
-cd /workspace/packages/comp1
-pnpm init
-
-cd /workspace
-# install dependencies
-pnpm add --filter comp1 --save-dev typescript @types/react @types/react @types/react-dom
-
-# install dev dependencies
-# install react and react-dom as peer dependencies
-# This means that the component will expect these packages to be
-# installed in the consuming application, and it will not bundle them
-# with the component. This is a common practice for libraries and
-# components to avoid version conflicts and reduce bundle size.
-# The --filter flag is used to specify the package to which the
-# dependencies should be added. In this case, we are adding the
-# dependencies to the "comp1" package.
-# The --workspace-root flag is used to specify that the dependencies
-# should be added to the root package.json file, which is the
-# workspace root. This is useful for monorepos where you want to
-# manage dependencies at the workspace level.
-pnpm add --filter --save-peer comp1 react react-dom
-
-# Create tsconfig.json for the component
-# This file contains the TypeScript compiler options and settings
-# for the component. It specifies the target JavaScript version,
-# module system, library files, and other compiler options.
-# The "include" and "exclude" sections specify which files and
-# directories should be included or excluded from the compilation.
-cat > /workspace/packages/comp1/tsconfig.json <<'EOF'
+    # Create tsconfig.json for the component
+    # This file contains the TypeScript compiler options and settings
+    # for the component. It specifies the target JavaScript version,
+    # module system, library files, and other compiler options.
+    # The "include" and "exclude" sections specify which files and
+    # directories should be included or excluded from the compilation.
+    cat > "$componentDir/tsconfig.json" <<'EOF'
 // Compiler options for TypeScript
 {
     "compilerOptions": {
@@ -146,7 +111,8 @@ EOF
 
 
 # Create a simple test file for the component
-cat > /workspace/packages/comp1/src/index.tsx <<'EOF'
+mkdir -p "${componentDir}/src"
+cat > "$componentDir/src/index.tsx" <<'EOF'
 type CompomompoProps = { message: string };
 
 function Compomompo({ message }: CompomompoProps) {
@@ -162,12 +128,147 @@ function Compomompo({ message }: CompomompoProps) {
 export default Compomompo;
 EOF
 
-# change the test script to build the package
-sed -i 's|"test": "echo \\"Error: no test specified\\" && exit 1"|"build": "tsc"|' /workspace/packages/comp1/package.json
+    # change the test script to build the package
+    addScript "$componentDir/package.json" "build" "tsc"
 
-# Change the entrypoint of the package to the dist folder
-sed -i '5s|"main": "index.js",|"main": "dist/index.js",|' /workspace/packages/comp1/package.json
+    # Change the entrypoint of the package to the dist folder
+    sed -i '5s|"main": "index.js",|"main": "dist/index.js",|' "$componentDir/package.json"
+}
 
-# Linking comp1 to the root package.json
+
+addIndexTsx() {
+    local componentName=$1
+    local componentDir="${pakagesDir}/${componentName}"
+
+    # ensure src folder exists
+    mkdir -p "${componentDir}/src"
+
+    # Create a simple test file for the component
+    cat > "${componentDir}/src/index.tsx" << 'EOF'
+type ${name^}Props = { message: string };
+
+function ${name^}({ message }: ${name^}Props) {
+    console.log("Compo message", message);
+    console.log(`Logger - ${new Date().toISOString()}: ${message}`);
+    return (
+        <div>
+            <h1>Bileşenden gelen mesaj: {message}</h1>
+        </div>
+    );
+}
+
+export default ${name^};
+EOF
+}
+
+addDependencies() {
+    local componentName=$1
+    local componentDir="${pakagesDir}/${componentName}"
+
+    cd "$workspaceDir"
+    # install dependencies
+    pnpm add --filter "$componentName" --save-dev typescript @types/react @types/react @types/react-dom
+
+    # install dev dependencies
+    # install react and react-dom as peer dependencies
+    # This means that the component will expect these packages to be
+    # installed in the consuming application, and it will not bundle them
+    # with the component. This is a common practice for libraries and
+    # components to avoid version conflicts and reduce bundle size.
+    # The --filter flag is used to specify the package to which the
+    # dependencies should be added. In this case, we are adding the
+    # dependencies to the "comp1" package.
+    # The --workspace-root flag is used to specify that the dependencies
+    # should be added to the root package.json file, which is the
+    # workspace root. This is useful for monorepos where you want to
+    # manage dependencies at the workspace level.
+    pnpm add --filter --save-peer "$componentName" react react-dom
+}
+
+addComponentToWorkspace() {
+    local componentName=$1
+    local componentDir="${pakagesDir}/${componentName}"
+
+    # Linking comp1 to the root package.json
+    cd "$workspaceDir"
+    pnpm add "./packages/$componentName" --workspace-root
+}
+
+createComponent() {
+    local componentName=$1
+    initComponent "$componentName"
+    
+    addIndexTsx "$componentName"
+
+    addDependencies "$componentName"
+
+    # Add the component to the workspace
+    addComponentToWorkspace "$componentName"
+}
+# -------------------------------------------------------------
+
+createWebapp() {
+    local appName=$1
+
+    # -------------------------------------------------------------
+    #               comp1-app - a simple web app
+    # Create test web app for the first component
+    # -------------------------------------------------------------
+    cd "$workspaceDir"
+    pnpm create vite "apps/$appName" --template react-ts
+
+    appDir="$workspaceDir/apps/$appName"
+    cd "$appDir"
+    pnpm install
+
+    cat > "$appDir/vite.config.ts" <<'EOF'
+    import { defineConfig } from 'vite'
+    import react from '@vitejs/plugin-react'
+
+    export default defineConfig({
+        plugins: [react()],
+        server: {
+            port: 3001,
+            host: '0.0.0.0',
+        }
+    })
+EOF
+
+    # Create a simple React component that uses the Logger from comp1
+    cat > "$appDir/src/App.tsx" <<'EOF'
+    import Compomompo from 'comp1'
+
+    function App() {
+    return (
+        <div className="App">
+        <h1>comp1 Web App</h1>
+        <Compomompo message="Hello from comp1!" />
+        </div>
+    )
+    }
+
+    export default App
+EOF
+
+}
+
+# -------------------------------------------------------------
+
+
+# Create a pnpm workspace with two components
+cat > /workspace/pnpm-workspace.yaml << EOF
+packages:
+  - 'apps/*'
+  - 'packages/*'
+EOF
+
 cd /workspace
-pnpm add ./packages/comp1 --workspace-root
+pnpm init
+
+# Initialize the first component
+createComponent "comp1"
+
+# Create a web app for the first component
+createWebapp "comp1-app"
+# Add a script to start the web app
+addScript "/workspace/apps/comp1-app/package.json" "start" "vite"
