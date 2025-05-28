@@ -250,6 +250,8 @@ EOF
     export default App
 EOF
 
+    # Add a script to start the web app
+    addScript "$appDir/package.json" "start" "vite"
 }
 
 # -------------------------------------------------------------
@@ -270,5 +272,3 @@ createComponent "comp1"
 
 # Create a web app for the first component
 createWebapp "comp1-app"
-# Add a script to start the web app
-addScript "/workspace/apps/comp1-app/package.json" "start" "vite"
