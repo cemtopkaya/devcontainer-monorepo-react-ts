@@ -43,7 +43,7 @@ initComponent() {
     # Create a component in the packages directory
     #------------------------------------------------------------
     cd "$componentDir"
-    pnpm init -y
+    pnpm init
 
     # Create tsconfig.json for the component
     # This file contains the TypeScript compiler options and settings
@@ -130,6 +130,7 @@ EOF
 
     # change the test script to build the package
     addScript "$componentDir/package.json" "build" "tsc"
+    addScript "$workspaceDir/package.json" "build:$componentName" "pnpm --filter $componentName build"
 
     # Change the entrypoint of the package to the dist folder
     sed -i '5s|"main": "index.js",|"main": "dist/index.js",|' "$componentDir/package.json"
@@ -144,20 +145,20 @@ addIndexTsx() {
     mkdir -p "${componentDir}/src"
 
     # Create a simple test file for the component
-    cat > "${componentDir}/src/index.tsx" << 'EOF'
-type ${name^}Props = { message: string };
+    cat > "${componentDir}/src/index.tsx" << "EOF"
+type CompomompoProps = { message: string };
 
-function ${name^}({ message }: ${name^}Props) {
+function Compomompo({ message }: CompomompoProps) {
     console.log("Compo message", message);
     console.log(`Logger - ${new Date().toISOString()}: ${message}`);
     return (
         <div>
-            <h1>Bileşenden gelen mesaj: {message}</h1>
+            <h1>comp1 Bileşeninden gelen mesaj: {message}</h1>
         </div>
     );
 }
 
-export default ${name^};
+export default Compomompo;
 EOF
 }
 
@@ -252,6 +253,7 @@ EOF
 
     # Add a script to start the web app
     addScript "$appDir/package.json" "start" "vite"
+    addScript "$workspaceDir/package.json" "start:$appName:ui" "pnpm --filter $appName dev"
 }
 
 # -------------------------------------------------------------
