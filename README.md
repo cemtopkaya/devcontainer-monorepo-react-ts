@@ -73,4 +73,38 @@ pnpm run start:comp1-app:ui
 
 ---
 
-Daha fazla bilgi için `.devcontainer/postcreate.sh` dosyasını inceleyebilirsiniz.
+# .devcontainer/postcreate.sh İncelemesi
+
+Bu betik, monorepo ortamını otomatik olarak kurmak ve örnek bir bileşen ile web uygulaması oluşturmak için kullanılır. Temel işlevleri ve akışı aşağıda özetlenmiştir:
+
+### 1. Ortam Hazırlığı
+- `jq` yüklü değilse kurar (JSON dosyalarını düzenlemek için gereklidir).
+- `workspaceDir` ve `pakagesDir` gibi temel dizin değişkenlerini tanımlar.
+- `apps/` ve `packages/` klasörlerini oluşturur.
+
+### 2. Script ve JSON Yardımcı Fonksiyonları
+- **addScript**: Herhangi bir `package.json` dosyasına yeni bir script ekler veya var olanı günceller (ör. build veya start scriptleri).
+
+### 3. Bileşen (Component) Oluşturma Fonksiyonları
+- **initComponent**: Yeni bir bileşen klasörü oluşturur, `pnpm init` ile başlatır, TypeScript yapılandırmasını (`tsconfig.json`) ve örnek bir React bileşeni (`src/index.tsx`) ekler. Build scriptlerini ve ana giriş dosyasını (`main`) ayarlar.
+- **addIndexTsx**: Bileşenin `src/index.tsx` dosyasını oluşturur.
+- **addDependencies**: Bileşene gerekli TypeScript ve React tip bağımlılıklarını ekler, ayrıca `react` ve `react-dom` peer dependency olarak ayarlanır.
+- **addComponentToWorkspace**: Bileşeni monorepo'nun köküne ekler.
+- **createComponent**: Yukarıdaki adımları bir araya getirerek tek komutla yeni bir bileşen oluşturur.
+
+### 4. Web Uygulaması Oluşturma Fonksiyonları
+- **createWebapp**: Vite + React + TypeScript template'i ile yeni bir uygulama başlatır, bağımlılıkları yükler, örnek bir `App.tsx` ve `vite.config.ts` dosyası ekler. Gerekli start scriptlerini ayarlar.
+
+### 5. Workspace ve Örnekler
+- `pnpm-workspace.yaml` dosyasını oluşturur ve hem `apps/*` hem de `packages/*` dizinlerini workspace'e dahil eder.
+- Kökte `pnpm init` ile ana package.json başlatılır.
+- `createComponent "comp1"` ve `createWebapp "comp1-app"` ile örnek bir bileşen ve uygulama otomatik olarak oluşturulur.
+
+### 6. Notlar
+- Betik, tüm işlemleri otomatikleştirir ve yeni bileşen/uygulama eklemek için ilgili fonksiyonları çağırmak yeterlidir.
+- Script ve bağımlılık ekleme işlemleri için `jq` kullanılır, bu sayede JSON dosyaları güvenli şekilde güncellenir.
+- Bileşenler peer dependency olarak `react` ve `react-dom` bekler, uygulamalar ise bunları doğrudan bağımlılık olarak içerir.
+
+---
+
+Betik, monorepo ortamında hızlı ve hatasız bir başlangıç için tasarlanmıştır. Detaylı işleyiş için `.devcontainer/postcreate.sh` dosyasını inceleyebilirsiniz.
