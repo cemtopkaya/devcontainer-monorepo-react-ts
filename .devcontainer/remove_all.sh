@@ -3,6 +3,7 @@ find . \
   -mindepth 1 \
   ! -name '.devcontainer' \
   ! -path './.devcontainer/*' \
+  ! -name 'README.md' \
   ! -name '.gitignore' \
   ! -name '.git' \
   ! -path './.git/*' \

@@ -239,18 +239,20 @@ EOF
 
     # Create a simple React component that uses the Logger from comp1
     cat > "$appDir/src/App.tsx" <<'EOF'
-    import Compomompo from 'comp1'
+import CompomompoAAA from 'AAA'
+import CompomompoBBB from 'BBB' 
 
-    function App() {
+function App() {
     return (
         <div className="App">
         <h1>comp1 Web App</h1>
-        <Compomompo message="Hello from comp1!" />
+        <CompomompoAAA message="Hello from AAA!" />
+        <CompomompoBBB message="Hello from BBB!" />
         </div>
     )
-    }
+}
 
-    export default App
+export default App
 EOF
 
     # Add a script to start the web app
