@@ -1,7 +1,8 @@
 # Install jq if not already installed
 if ! command -v jq &> /dev/null; then
-    echo "Installing jq..."
-    apt-get update && apt-get install -y jq
+    echo "-------->>> Installing jq..."
+    apt-get update -qq
+    apt-get install --yes jq
 fi
 
 # Function to add a script to package.json
@@ -130,7 +131,7 @@ EOF
 
     # change the test script to build the package
     addScript "$componentDir/package.json" "build" "tsc"
-    addScript "$workspaceDir/package.json" "build:$componentName" "pnpm --filter $componentName build"
+    addScript "$workspaceDir/package.json" "build:component:$componentName" "pnpm --filter $componentName build"
 
     # Change the entrypoint of the package to the dist folder
     sed -i '5s|"main": "index.js",|"main": "dist/index.js",|' "$componentDir/package.json"
@@ -145,7 +146,7 @@ addIndexTsx() {
     mkdir -p "${componentDir}/src"
 
     # Create a simple test file for the component
-    cat > "${componentDir}/src/index.tsx" << "EOF"
+    cat > "${componentDir}/src/index.tsx" <<"EOF"
 type CompomompoProps = { message: string };
 
 function Compomompo({ message }: CompomompoProps) {
@@ -160,6 +161,7 @@ function Compomompo({ message }: CompomompoProps) {
 
 export default Compomompo;
 EOF
+
 }
 
 addDependencies() {
@@ -253,24 +255,36 @@ EOF
 
     # Add a script to start the web app
     addScript "$appDir/package.json" "start" "vite"
-    addScript "$workspaceDir/package.json" "start:$appName:ui" "pnpm --filter $appName dev"
+    addScript "$workspaceDir/package.json" "start:$appName:ui" "pnpm build:components && pnpm --filter $appName dev"
 }
 
 # -------------------------------------------------------------
 
 
-# Create a pnpm workspace with two components
-cat > /workspace/pnpm-workspace.yaml << EOF
-packages:
-  - 'apps/*'
-  - 'packages/*'
+initPnpmWorkspace() {
+    # Initialize pnpm workspace
+    cd "$workspaceDir"
+    pnpm init
+
+    # Create a pnpm workspace with two components
+    cat > /workspace/pnpm-workspace.yaml << EOF
+    packages:
+      - 'apps/*'
+      - 'packages/*'
 EOF
 
-cd /workspace
-pnpm init
+    # Add a script to build all components
+    pnpm add -D npm-run-all --workspace-root
+
+    addScript "$workspaceDir/package.json" "build:components" "npm-run-all build:component:*"
+}
+
+# Initialize the pnpm workspace
+initPnpmWorkspace
 
 # Initialize the first component
-createComponent "comp1"
+createComponent "AAA"
+createComponent "BBB"
 
 # Create a web app for the first component
-createWebapp "comp1-app"
+createWebapp "web-app"
