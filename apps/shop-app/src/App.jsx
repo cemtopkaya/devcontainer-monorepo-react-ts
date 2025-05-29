@@ -1,15 +1,9 @@
 import { useState } from 'react';
-/** 
- * TypeScript sadece derleme sırasında CartItem tipini kullanır, 
- * Vite ise çalışma zamanında CartItem’ı aramaz ve hata oluşmaz.
- */ 
-import type { CartItem } from 'cart-lib';
 import { addItemToCart } from 'cart-lib';
-
 import { Button } from 'ui-button';
 
 function App() {
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState([]);
   const handleAdd = () => {
     const item = { id: "1", name: "Elma", price: 5 };
     setCart(addItemToCart(cart, item));
@@ -25,4 +19,3 @@ function App() {
 }
 
 export default App;
-
