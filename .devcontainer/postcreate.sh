@@ -55,19 +55,11 @@ initComponent() {
     cat > "$componentDir/tsconfig.json" <<'EOF'
 // Compiler options for TypeScript
 {
+    "extends": "../../tsconfig.base.json",
     "compilerOptions": {
-        // Set the JavaScript language version for emitted code
-        "target": "ES2020",
-        // Specify the module code generation method
-        "module": "ESNext",
-        // List of library files to include in the compilation
-        "lib": [
-            "dom",              // Include DOM library types
-            "dom.iterable",     // Include iterable DOM types
-            "esnext"            // Include latest ECMAScript features
-        ],
-        // Specify JSX code generation mode (for React 17+)
-        "jsx": "react-jsx",
+        // Derleyici, proje bağımlılıklarını takip ederek artımlı derleme yapabilir,
+        // .d.ts dosyaları üretilir ve derleyici bağımlılık zincirini takip eder.
+        "composite": true,
         // Generate .d.ts declaration files
         "declaration": true,
         // Generate source map files for debugging
@@ -76,20 +68,8 @@ initComponent() {
         "outDir": "./dist",
         // Root directory of input files
         "rootDir": "./src",
-        // Enable all strict type-checking options
-        "strict": true,
-        // Enable interoperability between CommonJS and ES Modules
-        "esModuleInterop": true,
-        // Skip type checking of declaration files (*.d.ts)
-        "skipLibCheck": true,
-        // Ensure file name casing consistency between imports and file system
-        "forceConsistentCasingInFileNames": true,
-        // Use bundler-style module resolution (for tools like Vite, Webpack)
-        "moduleResolution": "bundler",
         // Allow default imports from modules with no default export
         "allowSyntheticDefaultImports": true,
-        // Allow importing .json files as modules
-        "resolveJsonModule": true,
         // Ensure each file can be safely transpiled independently
         "isolatedModules": true,
         // Emit output files (set to false to disable emitting)
@@ -110,31 +90,12 @@ initComponent() {
 }
 EOF
 
-
-# Create a simple test file for the component
-mkdir -p "${componentDir}/src"
-cat > "$componentDir/src/index.tsx" <<'EOF'
-type CompomompoProps = { message: string };
-
-function Compomompo({ message }: CompomompoProps) {
-    console.log("Compo message", message);
-    console.log(`Logger - ${new Date().toISOString()}: ${message}`);
-    return (
-        <div>
-            <h1>comp1 Bileşeninden gelen mesaj: {message}</h1>
-        </div>
-    );
-}
-
-export default Compomompo;
-EOF
-
     # change the test script to build the package
     addScript "$componentDir/package.json" "build" "tsc"
     addScript "$workspaceDir/package.json" "build:component:$componentName" "pnpm --filter $componentName build"
 
     # Change the entrypoint of the package to the dist folder
-    sed -i '5s|"main": "index.js",|"main": "dist/index.js",|' "$componentDir/package.json"
+    sed -i '5s|"main": "index.js",|"main": "dist/index.js","types": "dist/index.d.ts",|' "$componentDir/package.json"
 }
 
 
@@ -145,21 +106,18 @@ addIndexTsx() {
     # ensure src folder exists
     mkdir -p "${componentDir}/src"
 
+
     # Create a simple test file for the component
-    cat > "${componentDir}/src/index.tsx" <<"EOF"
-type CompomompoProps = { message: string };
+    cat > "$componentDir/src/index.ts" <<'EOF'
+export type CartItem = {
+    id: string;
+    name: string;
+    price: number;
+};
 
-function Compomompo({ message }: CompomompoProps) {
-    console.log("Compo message", message);
-    console.log(`Logger - ${new Date().toISOString()}: ${message}`);
-    return (
-        <div>
-            <h1>comp1 Bileşeninden gelen mesaj: {message}</h1>
-        </div>
-    );
+export function addItemToCart(cart: CartItem[], item: CartItem): CartItem[] {
+    return [...cart, item];
 }
-
-export default Compomompo;
 EOF
 
 }
@@ -170,7 +128,7 @@ addDependencies() {
 
     cd "$workspaceDir"
     # install dependencies
-    pnpm add --filter "$componentName" --save-dev typescript @types/react @types/react @types/react-dom
+    pnpm add --filter "$componentName" --save-dev typescript @types/react @types/react-dom
 
     # install dev dependencies
     # install react and react-dom as peer dependencies
@@ -219,40 +177,75 @@ createWebapp() {
     # -------------------------------------------------------------
     cd "$workspaceDir"
     pnpm create vite "apps/$appName" --template react-ts
-
+    sleep 5
+    
     appDir="$workspaceDir/apps/$appName"
     cd "$appDir"
     pnpm install
 
     cat > "$appDir/vite.config.ts" <<'EOF'
-    import { defineConfig } from 'vite'
-    import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
-    export default defineConfig({
-        plugins: [react()],
-        server: {
-            port: 3001,
-            host: '0.0.0.0',
-        }
-    })
+export default defineConfig({
+    plugins: [react()],
+    server: {
+        port: 3001,
+        host: '0.0.0.0',
+    }
+})
+EOF
+
+    cat > "$appDir/index.html" <<'EOF'
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Shop App</title>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>
+EOF
+
+    cat > "$appDir/src/main.tsx" <<'EOF'
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+
+ReactDOM.createRoot(document.getElementById('root')!).render(<App />);
 EOF
 
     # Create a simple React component that uses the Logger from comp1
     cat > "$appDir/src/App.tsx" <<'EOF'
-import CompomompoAAA from 'AAA'
-import CompomompoBBB from 'BBB' 
+import { useState } from 'react';
+/** 
+ * TypeScript sadece derleme sırasında CartItem tipini kullanır, 
+ * Vite ise çalışma zamanında CartItem’ı aramaz ve hata oluşmaz.
+ */ 
+import type { CartItem } from 'cart-lib';
+import { addItemToCart } from 'cart-lib';
 
 function App() {
-    return (
-        <div className="App">
-        <h1>comp1 Web App</h1>
-        <CompomompoAAA message="Hello from AAA!" />
-        <CompomompoBBB message="Hello from BBB!" />
-        </div>
-    )
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const handleAdd = () => {
+    const item = { id: "1", name: "Elma", price: 5 };
+    setCart(addItemToCart(cart, item));
+  };
+
+  return (
+    <div>
+      <h1>Sepet</h1>
+      <button onClick={handleAdd}>Elma Ekle</button>
+      <pre>{JSON.stringify(cart, null, 2)}</pre>
+    </div>
+  );
 }
 
-export default App
+export default App;
+
 EOF
 
     # Add a script to start the web app
@@ -270,9 +263,44 @@ initPnpmWorkspace() {
 
     # Create a pnpm workspace with two components
     cat > /workspace/pnpm-workspace.yaml << EOF
-    packages:
-      - 'apps/*'
-      - 'packages/*'
+packages:
+    - 'apps/*'
+    - 'packages/*'
+EOF
+
+    cat > /workspace/tsconfig.base.json << EOF
+{
+  "compilerOptions": {
+        // Set the JavaScript language version for emitted code
+        // ESNext: Use the latest ECMAScript features
+        // ES2020: Use ECMAScript 2020 features
+        // ES2015: Use ECMAScript 2015 features (ES6)
+        // ES5: Use ECMAScript 5 features (default for older browsers)
+        "target": "ES2020", 
+        // Specify the module code generation method
+        "module": "ES2020",
+        // List of library files to include in the compilation
+        "lib": [
+            "dom",              // Include DOM library types
+            "dom.iterable",     // Include iterable DOM types
+            "esnext"            // Include latest ECMAScript features
+        ],
+        // Specify JSX code generation mode (for React 17+)
+        "jsx": "react-jsx",
+        // Ensure file name casing consistency between imports and file system
+        "forceConsistentCasingInFileNames": true,
+        // Use bundler-style module resolution (for tools like Vite, Webpack)
+        "moduleResolution": "bundler",
+        // Enable all strict type-checking options
+        "strict": true,
+        // Enable interoperability between CommonJS and ES Modules
+        "esModuleInterop": true,
+        // Skip type checking of declaration files (*.d.ts)
+        "skipLibCheck": true,
+        // Allow importing .json files as modules
+        "resolveJsonModule": true
+  }
+}
 EOF
 
     # Add a script to build all components
@@ -285,8 +313,8 @@ EOF
 initPnpmWorkspace
 
 # Initialize the first component
-createComponent "AAA"
-createComponent "BBB"
+createComponent "cart-lib"
+createComponent "ui-button"
 
 # Create a web app for the first component
-createWebapp "web-app"
+createWebapp "shop-app"

@@ -20,5 +20,5 @@
     }
   },
   "workspaceFolder": "/workspace",
-  "postCreateCommand": "./.devcontainer/postcreate.sh"
+  // "postCreateCommand": "./.devcontainer/postcreate.sh"
 }

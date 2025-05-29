@@ -1,0 +1,24 @@
+{
+  "name": "workspace",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:components": "npm-run-all build:component:*",
+    "build:component:cart-lib": "pnpm --filter cart-lib build",
+    "build:component:ui-button": "pnpm --filter ui-button build",
+    "start:shop-app:ui": "pnpm build:components && pnpm --filter shop-app dev"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.11.0",
+  "devDependencies": {
+    "npm-run-all": "^4.1.5"
+  },
+  "dependencies": {
+    "cart-lib": "link:packages/cart-lib",
+    "ui-button": "link:packages/ui-button"
+  }
+}
